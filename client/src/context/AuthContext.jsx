@@ -39,10 +39,8 @@ export function AuthProvider({ children }) {
 
   const register = async (formData) => {
     const res = await api.post('/auth/register', formData);
-    const { token, data } = res.data;
-    localStorage.setItem('ace_token', token);
-    setUser(data);
-    return data;
+    // User must log in after registration
+    return res.data;
   };
 
   const logout = () => {

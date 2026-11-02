@@ -28,6 +28,9 @@ const DEFAULT_REWARDS = {
   achievement_add:  { xp: 40,  tokens: 15, description: 'Logged Academic Achievement' },
   streak_daily:     { xp: 50,  tokens: 10, description: 'Daily Streak Maintained' },
   goal_complete:    { xp: 30,  tokens: 10, description: 'Daily Sprint Goal Completed' },
+  add_coding_profile: { xp: 50, tokens: 15, description: 'Connected Coding Platform' },
+  sync_coding:        { xp: 15, tokens: 5,  description: 'Synchronized Coding Telemetry' },
+  coding_solve:       { xp: 18, tokens: 4,  description: 'Verified Problem Solve' },
 };
 
 /**

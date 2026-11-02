@@ -73,8 +73,8 @@ export default function RegisterPage() {
         graduationYear: Number(formData.graduationYear),
       });
 
-      toast.success('Genesis account initialized! Welcome to ACE.');
-      navigate('/onboarding');
+      toast.success('Registration successful! Please log in with your credentials to access your dashboard.', { duration: 5000 });
+      navigate(`/login?registered=true&email=${encodeURIComponent(formData.email)}`);
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed. Email may already exist.';
       setError(msg);

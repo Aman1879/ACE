@@ -8,13 +8,21 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const registeredEmail = queryParams.get('email') || '';
+  const isJustRegistered = queryParams.get('registered') === 'true';
 
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({
+    email: registeredEmail || '',
+    password: '',
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = isJustRegistered
+    ? '/onboarding'
+    : location.state?.from?.pathname || '/dashboard';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -99,6 +107,16 @@ export default function LoginPage() {
               Log in to your student dashboard to track today's progress.
             </p>
           </div>
+
+          {isJustRegistered && (
+            <div className="p-4 rounded-2xl bg-[#F3FBF3] border border-[#57C76F]/40 text-emerald-800 text-xs font-semibold flex items-start gap-3 shadow-2xs">
+              <CheckCircle2 className="w-5 h-5 text-[#57C76F] shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-sm block text-emerald-900">Registration Complete! 🎉</span>
+                <span>Your ACE student account &amp; Genesis Kit (+100 XP, 50 $ACE) are ready. Please enter your password to sign in.</span>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold flex items-center gap-2">
