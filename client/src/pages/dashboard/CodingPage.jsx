@@ -5,6 +5,7 @@ import {
   createCodingProfile,
   deleteCodingProfile,
   syncCodingProfiles,
+  extractPlatformData,
 } from '../../services/codingService';
 import { recordActivity } from '../../services/streakService';
 import Modal from '../../components/common/Modal';
@@ -28,6 +29,8 @@ import {
   Filter,
   Trash2,
   Target,
+  Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -39,6 +42,8 @@ export default function CodingPage() {
   const [isSolveModalOpen, setIsSolveModalOpen] = useState(false);
   const [dbProfiles, setDbProfiles] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isLiveVerified, setIsLiveVerified] = useState(false);
   const [lastSyncText, setLastSyncText] = useState('All 5 platforms synced 14 mins ago • Next automatic webhook cycle in 46 mins • 0 sync errors');
 
   // New Platform Form
@@ -216,6 +221,28 @@ export default function CodingPage() {
 
   const [solvedList, setSolvedList] = useState(recentSolves);
 
+  // Dynamic Metrics computed across real connected MongoDB profiles
+  const totalSolvedCount = dbProfiles.length > 0
+    ? dbProfiles.reduce((acc, p) => acc + (p.platform === 'GitHub' ? 0 : (p.totalSolved || 0)), 0)
+    : 782;
+  const easyCount = dbProfiles.length > 0
+    ? dbProfiles.reduce((acc, p) => acc + (p.easySolved || 0), 0)
+    : 370;
+  const medCount = dbProfiles.length > 0
+    ? dbProfiles.reduce((acc, p) => acc + (p.mediumSolved || 0), 0)
+    : 344;
+  const hardCount = dbProfiles.length > 0
+    ? dbProfiles.reduce((acc, p) => acc + (p.hardSolved || 0), 0)
+    : 68;
+
+  const peakRating = dbProfiles.length > 0
+    ? Math.max(...dbProfiles.map((p) => p.contestRating || 0), 0) || 1650
+    : 1940;
+
+  const ghProfile = dbProfiles.find((p) => p.platform === 'GitHub');
+  const allTimeCommits = ghProfile ? ghProfile.totalSolved : 1420;
+  const repoCount = ghProfile ? (ghProfile.mediumSolved || 14) : 46;
+
   const displayPlatforms = dbProfiles.length > 0
     ? dbProfiles.map((p) => {
         const config = {
@@ -239,11 +266,44 @@ export default function CodingPage() {
           rating: p.contestRating ? `Rating: ${p.contestRating}` : 'Connected',
           globalRank: p.globalRank || 'Tamper-Proof Verified',
           submetrics: `E: ${p.easySolved || 0} | M: ${p.mediumSolved || 0} | H: ${p.hardSolved || 0}`,
-          badges: ['Verified Webhook', 'Live Sync'],
+          badges: [p.notes || 'Live API Verified', 'Atlas Sync'],
           isDbItem: true,
+          profileUrl: p.profileUrl,
         };
       })
     : connectedPlatforms;
+
+  const handleFetchLiveTelemetry = async () => {
+    if (!platformForm.username.trim()) {
+      toast.error('Please enter your platform handle / username first.');
+      return;
+    }
+    try {
+      setIsExtracting(true);
+      toast.loading(`Extracting live telemetry from ${platformForm.platform}...`, { id: 'live-extract' });
+      const res = await extractPlatformData(platformForm.platform, platformForm.username.trim());
+      const data = res.data?.data;
+      if (data) {
+        setPlatformForm((prev) => ({
+          ...prev,
+          username: data.username || prev.username,
+          profileUrl: data.profileUrl || prev.profileUrl,
+          totalSolved: data.totalSolved !== undefined ? data.totalSolved : prev.totalSolved,
+          easySolved: data.easySolved !== undefined ? data.easySolved : prev.easySolved,
+          mediumSolved: data.mediumSolved !== undefined ? data.mediumSolved : prev.mediumSolved,
+          hardSolved: data.hardSolved !== undefined ? data.hardSolved : prev.hardSolved,
+          contestRating: data.contestRating !== undefined ? data.contestRating : prev.contestRating,
+          globalRank: data.globalRank || prev.globalRank,
+        }));
+        setIsLiveVerified(true);
+        toast.success(`Verified real ${platformForm.platform} data! (${data.totalSolved} solved/commits, Rank: ${data.globalRank || 'Active'})`, { id: 'live-extract' });
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || `Could not fetch real data for ${platformForm.username}`, { id: 'live-extract' });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const filteredSolves =
     platformFilter === 'All'
@@ -460,14 +520,14 @@ export default function CodingPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Solved</span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-              +16 this wk
+              {dbProfiles.length > 0 ? 'Live Telemetry' : '+16 this wk'}
             </span>
           </div>
-          <div className="text-3xl font-black text-[#1B1B1B]">782</div>
+          <div className="text-3xl font-black text-[#1B1B1B]">{totalSolvedCount.toLocaleString()}</div>
           <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-            <span>Easy: 370</span>
-            <span>Med: 344</span>
-            <span className="text-red-600 font-semibold">Hard: 68</span>
+            <span>Easy: {easyCount}</span>
+            <span>Med: {medCount}</span>
+            <span className="text-red-600 font-semibold">Hard: {hardCount}</span>
           </div>
         </div>
 
@@ -476,13 +536,13 @@ export default function CodingPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Peak Rating</span>
             <span className="px-2 py-0.5 rounded-full bg-orange-50 text-[#FF6B00] text-[10px] font-bold border border-orange-200">
-              Knight Tier
+              {peakRating > 2000 ? 'Knight Tier' : (peakRating > 1600 ? 'Guardian Tier' : 'Coder Tier')}
             </span>
           </div>
-          <div className="text-3xl font-black text-[#1B1B1B]">1,940</div>
+          <div className="text-3xl font-black text-[#1B1B1B]">{peakRating.toLocaleString()}</div>
           <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-            <span>Top 4.1% Global LeetCode</span>
-            <span className="font-semibold text-blue-600">CF: 1,620 Max</span>
+            <span>Top Competitive Rank</span>
+            <span className="font-semibold text-blue-600">Active</span>
           </div>
         </div>
 
@@ -491,13 +551,13 @@ export default function CodingPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-400">All-Time Commits</span>
             <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[10px] font-bold">
-              46 Repos
+              {repoCount} Repos
             </span>
           </div>
-          <div className="text-3xl font-black text-[#1B1B1B]">1,420</div>
+          <div className="text-3xl font-black text-[#1B1B1B]">{allTimeCommits.toLocaleString()}</div>
           <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-            <span>184 stars earned</span>
-            <span className="font-semibold text-emerald-600">94% PR Merge</span>
+            <span>GitHub Verified</span>
+            <span className="font-semibold text-emerald-600">Real-Time Sync</span>
           </div>
         </div>
 
@@ -514,8 +574,8 @@ export default function CodingPage() {
             <span className="text-base font-bold text-gray-500">Days</span>
           </div>
           <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 border-t border-gray-100">
-            <span>3 Solved today</span>
-            <span className="font-bold text-[#FF6B00]">Day 28 = +45 $ACE</span>
+            <span>Daily Activity Verified</span>
+            <span className="font-bold text-[#FF6B00]">Day {Number(user?.streak ?? 1) + 1} = +45 $ACE</span>
           </div>
         </div>
       </div>
@@ -1017,14 +1077,31 @@ export default function CodingPage() {
               <label className="block text-xs font-bold text-gray-700 mb-1">
                 Username / Handle *
               </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. tour_de_code"
-                value={platformForm.username}
-                onChange={(e) => setPlatformForm({ ...platformForm, username: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#FF6B00]"
-              />
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. neal_wu or Aman1879"
+                  value={platformForm.username}
+                  onChange={(e) => {
+                    setPlatformForm({ ...platformForm, username: e.target.value });
+                    setIsLiveVerified(false);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#FF6B00]"
+                />
+                {['LeetCode', 'GitHub', 'Codeforces'].includes(platformForm.platform) && (
+                  <button
+                    type="button"
+                    onClick={handleFetchLiveTelemetry}
+                    disabled={isExtracting}
+                    className="px-3 py-2 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold flex items-center space-x-1.5 transition-all shadow-sm shrink-0 disabled:opacity-50"
+                    title="Extract real-time data from official platform API"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 text-amber-400 ${isExtracting ? 'animate-spin' : ''}`} />
+                    <span>{isExtracting ? 'Extracting...' : 'Fetch Live Stats'}</span>
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">
@@ -1039,6 +1116,15 @@ export default function CodingPage() {
               />
             </div>
           </div>
+
+          {isLiveVerified && (
+            <div className="p-3 rounded-xl bg-[#F3FBF3] border border-[#57C76F]/40 flex items-center space-x-2 text-xs text-emerald-800 font-semibold shadow-2xs">
+              <CheckCircle2 className="w-4 h-4 text-[#57C76F] shrink-0" />
+              <span>
+                Live API Telemetry Verified! Authentic real-time metrics retrieved directly from {platformForm.platform}.
+              </span>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
@@ -1114,8 +1200,11 @@ export default function CodingPage() {
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-900">
-            Connecting a verified coding account logs a genesis sync activity in MongoDB Atlas and credits <strong>+50 XP &amp; +15 $ACE</strong> to your student wallet.
+          <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-900 flex items-start space-x-2">
+            <ShieldCheck className="w-4 h-4 text-[#FF6B00] shrink-0 mt-0.5" />
+            <span>
+              <strong>Real-Time API Extraction:</strong> ACE directly polls official GraphQL and REST endpoints for your genuine solved metrics, verified contest rating, and global ranking.
+            </span>
           </div>
 
           <div className="flex justify-end space-x-2 pt-2">

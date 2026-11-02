@@ -4,4 +4,4 @@ export const createCodingProfile = (data) => api.post('/coding', data);
 export const updateCodingProfile = (id, data) => api.put(`/coding/${id}`, data);
 export const deleteCodingProfile = (id) => api.delete(`/coding/${id}`);
 export const syncCodingProfiles = () => api.post('/coding/sync');
-
+export const extractPlatformData = (platform, username) => api.post('/coding/extract', { platform, username });
