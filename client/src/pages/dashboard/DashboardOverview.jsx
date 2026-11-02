@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getMyProfile } from '../../services/profileService';
 import { getGoals, createGoal, completeGoal } from '../../services/goalService';
 import { getProjects, createProject } from '../../services/projectService';
+import { getInternships } from '../../services/internshipService';
 import { getStreak, recordActivity } from '../../services/streakService';
 import { getGamificationSummary, getBadges } from '../../services/gamificationService';
 import {
@@ -40,6 +41,8 @@ export default function DashboardOverview() {
   const [streakData, setStreakData] = useState(null);
   const [projectList, setProjectList] = useState([]);
   const [projectCount, setProjectCount] = useState(0);
+  const [internshipCount, setInternshipCount] = useState(0);
+  const [badgeCount, setBadgeCount] = useState(0);
   const [dailySprintTasks, setDailySprintTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -77,11 +80,13 @@ export default function DashboardOverview() {
   const fetchRealDashboardData = async () => {
     try {
       setLoading(true);
-      const [profRes, goalRes, projRes, streakRes] = await Promise.allSettled([
+      const [profRes, goalRes, projRes, streakRes, gameRes, internRes] = await Promise.allSettled([
         getMyProfile(),
         getGoals({ limit: 6 }),
         getProjects({ limit: 10 }),
         getStreak(),
+        getGamificationSummary(),
+        getInternships({ limit: 1 }),
       ]);
 
       if (profRes.status === 'fulfilled' && profRes.value?.data) {
@@ -95,7 +100,15 @@ export default function DashboardOverview() {
       if (projRes.status === 'fulfilled' && projRes.value?.data) {
         const projs = projRes.value.data.data || projRes.value.data || [];
         setProjectList(projs);
-        setProjectCount(projRes.value.data.total || projs.length || 0);
+        setProjectCount(projRes.value.data.total || projRes.value.data.pagination?.total || projs.length || 0);
+      }
+      if (gameRes.status === 'fulfilled' && gameRes.value?.data) {
+        const gObj = gameRes.value.data?.data || gameRes.value.data || {};
+        if (gObj.badgeCount !== undefined) setBadgeCount(gObj.badgeCount);
+      }
+      if (internRes.status === 'fulfilled' && internRes.value?.data) {
+        const totalInterns = internRes.value.data?.pagination?.total ?? (Array.isArray(internRes.value.data?.data) ? internRes.value.data.data.length : 0);
+        setInternshipCount(totalInterns);
       }
 
       if (goalRes.status === 'fulfilled' && goalRes.value?.data) {
@@ -176,12 +189,7 @@ export default function DashboardOverview() {
         prev.map((t) => (t.id === task.id ? { ...t, completed: true } : t))
       );
       toast.success('Sprint task completed! XP & $ACE Tokens awarded.');
-      if (res?.data?.xpAwarded) {
-        updateUser({
-          xp: (user?.xp || 0) + res.data.xpAwarded,
-          tokenBalance: (user?.tokenBalance || 0) + (res.data.tokensAwarded || 10),
-        });
-      }
+      await loadUser();
     } catch {
       setDailySprintTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
@@ -198,9 +206,9 @@ export default function DashboardOverview() {
     try {
       const res = await createGoal({
         title: newGoalText.trim(),
-        type: 'daily',
+        type: 'Daily',
         category: goalCategory,
-        priority: 'medium',
+        priority: 'Medium',
       });
 
       const newId = res?.data?.data?._id || res?.data?._id || Date.now();
@@ -218,6 +226,7 @@ export default function DashboardOverview() {
       setNewGoalText('');
       setIsGoalModalOpen(false);
       toast.success('Goal saved to MongoDB! Complete it to earn XP.');
+      await loadUser();
     } catch (err) {
       toast.error('Failed to create goal');
     }
@@ -247,6 +256,9 @@ export default function DashboardOverview() {
       });
 
       setProjectCount((c) => c + 1);
+      if (res?.data?.data) {
+        setProjectList((prev) => [res.data.data, ...prev]);
+      }
       setIsProjectModalOpen(false);
       setProjectForm({
         title: '',
@@ -257,12 +269,7 @@ export default function DashboardOverview() {
         category: 'Full Stack',
       });
 
-      // Update XP & tokens for new project
-      updateUser({
-        xp: (user?.xp || 0) + 50,
-        tokenBalance: (user?.tokenBalance || 0) + 20,
-      });
-
+      await loadUser();
       toast.success('Project published to MongoDB! +50 XP & +20 $ACE awarded.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not save project');
@@ -274,11 +281,11 @@ export default function DashboardOverview() {
     e.preventDefault();
     try {
       await recordActivity('coding_solve');
-      updateUser({
-        xp: (user?.xp || 0) + 30,
-        tokenBalance: (user?.tokenBalance || 0) + 10,
-        streak: (user?.streak || 27) + 1,
-      });
+      await loadUser();
+      const updatedStreak = await getStreak();
+      if (updatedStreak?.data?.data) {
+        setStreakData(updatedStreak.data.data);
+      }
       setIsCodingModalOpen(false);
       toast.success(`Logged ${codingForm.problemsSolved} problems on ${codingForm.platform}! Streak incremented.`);
     } catch (err) {
@@ -525,12 +532,12 @@ export default function DashboardOverview() {
               <span className="text-xs font-bold text-gray-400 uppercase">ATS Fit</span>
             </div>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Distributed Systems &amp; Backend Track
+              {(profile?.careerInterests && profile.careerInterests[0]) || (user?.profile?.careerInterests && user.profile.careerInterests[0]) || 'Full-Stack Software Engineer Track'}
             </p>
           </div>
           <div className="pt-2 border-t border-gray-100 grid grid-cols-3 text-center text-[10px]">
             <div>
-              <div className="font-black text-gray-800 text-sm">3</div>
+              <div className="font-black text-gray-800 text-sm">{internshipCount}</div>
               <div className="text-gray-400 font-semibold uppercase">Interns</div>
             </div>
             <div>
@@ -538,7 +545,7 @@ export default function DashboardOverview() {
               <div className="text-gray-400 font-semibold uppercase">Projects</div>
             </div>
             <div>
-              <div className="font-black text-gray-800 text-sm">{currentLevel > 5 ? 19 : 2}</div>
+              <div className="font-black text-gray-800 text-sm">{badgeCount > 0 ? badgeCount : (currentLevel > 5 ? 19 : 2)}</div>
               <div className="text-gray-400 font-semibold uppercase">Badges</div>
             </div>
           </div>
