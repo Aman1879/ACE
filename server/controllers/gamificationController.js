@@ -44,6 +44,10 @@ exports.getBadges = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
+    // Check unlocks first so any newly qualified badges are instantly awarded
+    const { checkBadgeUnlocks } = require('../utils/rewardEngine');
+    await checkBadgeUnlocks(userId);
+
     const [allBadges, userBadges] = await Promise.all([
       Badge.find({ isActive: true }).sort({ category: 1, rarity: 1 }),
       UserBadge.find({ user: userId }).lean(),
@@ -65,6 +69,32 @@ exports.getBadges = async (req, res, next) => {
     });
 
     return successResponse(res, badgesWithStatus, 'Badges fetched');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─── GET /api/gamification/my-badges ────────────────────────────────────────
+exports.getMyBadges = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { checkBadgeUnlocks } = require('../utils/rewardEngine');
+    await checkBadgeUnlocks(userId);
+
+    const userBadges = await UserBadge.find({ user: userId })
+      .populate('badge')
+      .sort({ earnedAt: -1 })
+      .lean();
+
+    const earnedList = userBadges
+      .filter((ub) => ub.badge && ub.badge.isActive)
+      .map((ub) => ({
+        ...ub.badge,
+        earnedAt: ub.earnedAt,
+        isUnlocked: true,
+      }));
+
+    return successResponse(res, earnedList, 'Earned badges fetched');
   } catch (err) {
     next(err);
   }

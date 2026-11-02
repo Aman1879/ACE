@@ -30,9 +30,19 @@ const defaultRewardRules = [
 // ─── Default Badges ──────────────────────────────────────────────────────────
 const defaultBadges = [
   {
-    slug: 'first-step',   name: 'First Step',    description: 'Welcome to ACE!',
+    slug: 'first-step',   name: 'First Step',    description: 'Welcome to ACE Genesis Kit!',
     icon: '👣', category: 'special',  condition: { type: 'xp_threshold', value: 1 },
     rarity: 'Common', tokenReward: 5, xpReward: 10,
+  },
+  {
+    slug: 'coding-pioneer', name: 'Coding Pioneer', description: 'Connected official LeetCode or GitHub account',
+    icon: '💻', category: 'special', condition: { type: 'coding_profile_count', value: 1 },
+    rarity: 'Common', tokenReward: 15, xpReward: 30,
+  },
+  {
+    slug: 'algorithm-ace', name: 'Algorithm Ace', description: 'Solved 25+ verified coding problems',
+    icon: '⚡', category: 'special', condition: { type: 'coding_solves', value: 25 },
+    rarity: 'Rare', tokenReward: 30, xpReward: 60,
   },
   {
     slug: 'project-starter', name: 'Project Starter', description: 'Added your first project',

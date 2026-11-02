@@ -43,6 +43,7 @@ export default function DashboardOverview() {
   const [projectCount, setProjectCount] = useState(0);
   const [internshipCount, setInternshipCount] = useState(0);
   const [badgeCount, setBadgeCount] = useState(0);
+  const [earnedBadges, setEarnedBadges] = useState([]);
   const [dailySprintTasks, setDailySprintTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,13 +81,14 @@ export default function DashboardOverview() {
   const fetchRealDashboardData = async () => {
     try {
       setLoading(true);
-      const [profRes, goalRes, projRes, streakRes, gameRes, internRes] = await Promise.allSettled([
+      const [profRes, goalRes, projRes, streakRes, gameRes, internRes, badgeRes] = await Promise.allSettled([
         getMyProfile(),
         getGoals({ limit: 6 }),
         getProjects({ limit: 10 }),
         getStreak(),
         getGamificationSummary(),
         getInternships({ limit: 1 }),
+        getBadges(),
       ]);
 
       if (profRes.status === 'fulfilled' && profRes.value?.data) {
@@ -105,6 +107,14 @@ export default function DashboardOverview() {
       if (gameRes.status === 'fulfilled' && gameRes.value?.data) {
         const gObj = gameRes.value.data?.data || gameRes.value.data || {};
         if (gObj.badgeCount !== undefined) setBadgeCount(gObj.badgeCount);
+      }
+      if (badgeRes.status === 'fulfilled' && badgeRes.value?.data) {
+        const bList = Array.isArray(badgeRes.value.data?.data)
+          ? badgeRes.value.data.data
+          : (Array.isArray(badgeRes.value.data) ? badgeRes.value.data : []);
+        const unlocked = bList.filter((b) => b.isUnlocked);
+        setEarnedBadges(unlocked);
+        setBadgeCount(unlocked.length);
       }
       if (internRes.status === 'fulfilled' && internRes.value?.data) {
         const totalInterns = internRes.value.data?.pagination?.total ?? (Array.isArray(internRes.value.data?.data) ? internRes.value.data.data.length : 0);
@@ -620,6 +630,79 @@ export default function DashboardOverview() {
                 <span>More</span>
               </div>
             </div>
+          </div>
+
+          {/* ─── Earned Badges & Verified Honors Showcase ──────────────── */}
+          <div className="bg-white rounded-2xl border border-[#EAEAEA] p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-7 h-7 rounded-lg bg-orange-100 text-[#FF6B00] flex items-center justify-center font-bold">
+                  <Award className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#1B1B1B]">Earned Badges &amp; Verified Honors</h3>
+                  <p className="text-xs text-gray-400">
+                    {earnedBadges.length > 0
+                      ? `${earnedBadges.length} verified badge${earnedBadges.length === 1 ? '' : 's'} stamped to your student passport`
+                      : 'Milestone badges unlocked through streaks, coding, and projects'}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/dashboard/achievements"
+                className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center space-x-1"
+              >
+                <span>All Milestones</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {earnedBadges.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {earnedBadges.map((b) => (
+                  <div
+                    key={b._id || b.slug}
+                    className="p-3.5 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-[#F3FBF3] to-white hover:border-[#57C76F] transition-all text-center space-y-1.5 shadow-2xs"
+                  >
+                    <div className="text-2xl filter drop-shadow-xs">{b.icon || '🏅'}</div>
+                    <div className="text-xs font-black text-gray-900 leading-tight">{b.name}</div>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                        b.rarity === 'Legendary'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : b.rarity === 'Epic'
+                          ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                          : b.rarity === 'Rare'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                          : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      }`}
+                    >
+                      {b.rarity || 'Verified'}
+                    </span>
+                    <p className="text-[10px] text-gray-500 line-clamp-1">{b.description}</p>
+                    <div className="text-[9px] font-bold text-emerald-600 pt-1 border-t border-emerald-100 flex items-center justify-center space-x-1">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>Unlocked</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-orange-50/60 border border-orange-200/80 flex items-center justify-between text-xs text-orange-950">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-[#FF6B00] shrink-0" />
+                  <span>
+                    Your <strong>First Step</strong> badge is ready to claim! Solve a coding problem or add a project to unlock your first verifiable honors badge.
+                  </span>
+                </div>
+                <Link
+                  to="/dashboard/coding"
+                  className="px-3 py-1.5 rounded-lg bg-[#FF6B00] text-white font-bold text-xs shrink-0 shadow-2xs"
+                >
+                  Start Coding
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Streak Tier Badges */}

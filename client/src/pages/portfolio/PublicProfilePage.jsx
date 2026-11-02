@@ -66,7 +66,7 @@ export default function PublicProfilePage() {
     );
   }
 
-  const { user, profile, streak, projects, certificates, achievements, internships, codingProfiles, skills } =
+  const { user, profile, streak, projects, certificates, achievements, internships, codingProfiles, skills, badges } =
     data;
 
   return (
@@ -176,6 +176,49 @@ export default function PublicProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Verified Badges & Honors Showcase */}
+        {badges && badges.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-[#1B1B1B]">Earned Badges &amp; Verified Honors</h2>
+                <p className="text-xs text-[#6B7280]">
+                  Cryptographically stamped achievements and milestone badges awarded to this student.
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-[#F3FBF3] text-xs font-bold text-[#57C76F] border border-[#D4F0DA]">
+                {badges.length} Verified Badge{badges.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {badges.map((b) => (
+                <div
+                  key={b._id || b.slug}
+                  className="card p-3.5 text-center space-y-1.5 hover:border-[#FF6B00] transition-all bg-white shadow-2xs"
+                >
+                  <div className="text-3xl filter drop-shadow-xs">{b.icon || '🏅'}</div>
+                  <div className="text-xs font-black text-[#1B1B1B] leading-tight">{b.name}</div>
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                      b.rarity === 'Legendary'
+                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                        : b.rarity === 'Epic'
+                        ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                        : b.rarity === 'Rare'
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}
+                  >
+                    {b.rarity || 'Verified'}
+                  </span>
+                  <p className="text-[10px] text-[#6B7280] line-clamp-2">{b.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Core Skills Chips */}
         {skills && skills.length > 0 && (

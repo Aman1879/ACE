@@ -13,6 +13,8 @@ import {
   Clock,
   Sparkles,
   ExternalLink,
+  Award,
+  ShieldCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -20,6 +22,7 @@ export default function ProfilePage() {
   const { user, loadUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [badges, setBadges] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -50,6 +53,8 @@ export default function ProfilePage() {
       const res = await getMyProfile();
       const pData = res.data?.data?.profile || res.data?.profile || res.data?.data || res.data;
       const uData = res.data?.data?.user || res.data?.user || user;
+      const bList = res.data?.data?.badges || res.data?.badges || [];
+      setBadges(bList);
       if (pData || uData) {
         setFormData({
           name: uData?.name || user?.name || '',
@@ -151,6 +156,72 @@ export default function ProfilePage() {
           </span>
         </div>
         <ProgressBar progress={completionPercent} color="bg-[#57C76F]" height="h-2.5" />
+      </div>
+
+      {/* ─── Earned Badges & Verified Honors Showcase ──────────────── */}
+      <div className="card p-6 bg-white space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#EAEAEA]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-orange-100 text-[#FF6B00] flex items-center justify-center font-bold">
+              <Award className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#1B1B1B]">
+                Earned Badges &amp; Verified Honors ({badges.length})
+              </h3>
+              <p className="text-xs text-[#6B7280]">
+                Verifiable on-chain academic and coding achievements awarded to your profile.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/dashboard/achievements"
+            className="text-xs font-bold text-[#FF6B00] hover:underline"
+          >
+            Explore Milestones &gt;
+          </a>
+        </div>
+
+        {badges.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            {badges.map((b) => (
+              <div
+                key={b._id || b.slug}
+                className="p-3 rounded-xl border border-emerald-200/80 bg-gradient-to-br from-[#F3FBF3] to-white hover:border-[#57C76F] transition-all text-center space-y-1 shadow-2xs"
+              >
+                <div className="text-2xl filter drop-shadow-xs">{b.icon || '🏅'}</div>
+                <div className="text-xs font-black text-gray-900 leading-tight">{b.name}</div>
+                <span
+                  className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                    b.rarity === 'Legendary'
+                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                      : b.rarity === 'Epic'
+                      ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                      : b.rarity === 'Rare'
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  }`}
+                >
+                  {b.rarity || 'Common'}
+                </span>
+                <p className="text-[10px] text-gray-500 line-clamp-1">{b.description}</p>
+                <div className="text-[9px] font-bold text-emerald-600 pt-1 border-t border-emerald-100 flex items-center justify-center space-x-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>Earned</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500 flex items-center justify-between">
+            <span>
+              No badges unlocked yet. Start solving problems, maintaining streaks, or publishing projects to earn verifiable student badges!
+            </span>
+            <a href="/dashboard/coding" className="font-bold text-[#FF6B00] hover:underline shrink-0 ml-2">
+              Start Coding &gt;
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Profile Form */}

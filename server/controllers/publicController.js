@@ -71,7 +71,16 @@ exports.getPublicProfile = async (req, res, next) => {
     // Streak
     tasks.push(Streak.findOne({ user: user._id }).select('currentStreak longestStreak totalActiveDays'));
 
-    const [projects, certificates, achievements, internships, codingProfiles, skills, streak] =
+    // Badges
+    const UserBadge = require('../models/UserBadge');
+    tasks.push(
+      UserBadge.find({ user: user._id })
+        .populate('badge')
+        .sort({ earnedAt: -1 })
+        .lean()
+    );
+
+    const [projects, certificates, achievements, internships, codingProfiles, skills, streak, userBadges] =
       await Promise.all(tasks);
 
     const publicData = {
@@ -109,6 +118,13 @@ exports.getPublicProfile = async (req, res, next) => {
       internships,
       codingProfiles,
       skills,
+      badges: (userBadges || [])
+        .filter((ub) => ub.badge && ub.badge.isActive)
+        .map((ub) => ({
+          ...ub.badge,
+          earnedAt: ub.earnedAt,
+          isUnlocked: true,
+        })),
     };
 
     return successResponse(res, publicData, 'Public profile fetched');

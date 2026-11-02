@@ -175,15 +175,19 @@ exports.checkBadgeUnlocks = async (userId) => {
     const user = await User.findById(userId).select('xp level').lean();
     if (!user) return;
 
-    const Project     = require('../models/Project');
-    const Certificate = require('../models/Certificate');
-    const Goal        = require('../models/Goal');
-    const Streak      = require('../models/Streak');
+    const Project       = require('../models/Project');
+    const Certificate   = require('../models/Certificate');
+    const Goal          = require('../models/Goal');
+    const Streak        = require('../models/Streak');
+    const CodingProfile = require('../models/CodingProfile');
 
-    const streak      = await Streak.findOne({ user: userId }).lean();
-    const projectCount= await Project.countDocuments({ user: userId });
-    const certCount   = await Certificate.countDocuments({ user: userId });
-    const goalCount   = await Goal.countDocuments({ user: userId, status: 'Completed' });
+    const streak        = await Streak.findOne({ user: userId }).lean();
+    const projectCount  = await Project.countDocuments({ user: userId });
+    const certCount     = await Certificate.countDocuments({ user: userId });
+    const goalCount     = await Goal.countDocuments({ user: userId, status: 'Completed' });
+    const codingProfiles= await CodingProfile.find({ user: userId }).lean();
+    const codingCount   = codingProfiles.length;
+    const totalCodingSolves = codingProfiles.reduce((acc, c) => acc + (c.totalSolved || 0), 0);
 
     const unlockedBadges = [];
 
@@ -213,6 +217,12 @@ exports.checkBadgeUnlocks = async (userId) => {
           break;
         case 'level_reached':
           qualified = user.level >= value;
+          break;
+        case 'coding_profile_count':
+          qualified = codingCount >= value;
+          break;
+        case 'coding_solves':
+          qualified = totalCodingSolves >= value;
           break;
         default:
           break;

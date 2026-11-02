@@ -24,9 +24,25 @@ const calcCompletion = (profile) => {
 // ─── GET /api/profile ────────────────────────────────────────────────────────
 exports.getMyProfile = async (req, res, next) => {
   try {
-    const user    = await User.findById(req.user.id);
-    const profile = await Profile.findOne({ user: req.user.id });
-    return successResponse(res, { user, profile }, 'Profile fetched');
+    const { checkBadgeUnlocks } = require('../utils/rewardEngine');
+    await checkBadgeUnlocks(req.user.id);
+
+    const UserBadge = require('../models/UserBadge');
+    const [user, profile, userBadges] = await Promise.all([
+      User.findById(req.user.id),
+      Profile.findOne({ user: req.user.id }),
+      UserBadge.find({ user: req.user.id }).populate('badge').sort({ earnedAt: -1 }).lean(),
+    ]);
+
+    const badges = userBadges
+      .filter((ub) => ub.badge && ub.badge.isActive)
+      .map((ub) => ({
+        ...ub.badge,
+        earnedAt: ub.earnedAt,
+        isUnlocked: true,
+      }));
+
+    return successResponse(res, { user, profile, badges }, 'Profile fetched');
   } catch (err) {
     next(err);
   }
